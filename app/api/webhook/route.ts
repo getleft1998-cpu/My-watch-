@@ -25,11 +25,20 @@ export async function POST(req: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session;
     const supabase = getSupabase();
 
+    const billingAddress = session.customer_details?.address;
+
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
         stripe_session_id: session.id,
         customer_email: session.customer_details?.email ?? null,
+        customer_phone: session.customer_details?.phone ?? null,
+        billing_address_line1: billingAddress?.line1 ?? null,
+        billing_address_line2: billingAddress?.line2 ?? null,
+        billing_address_city: billingAddress?.city ?? null,
+        billing_address_state: billingAddress?.state ?? null,
+        billing_address_postal_code: billingAddress?.postal_code ?? null,
+        billing_address_country: billingAddress?.country ?? null,
         amount_total: session.amount_total ? session.amount_total / 100 : 49,
         status: "paid",
       })

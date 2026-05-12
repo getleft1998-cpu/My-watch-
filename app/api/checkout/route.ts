@@ -23,9 +23,13 @@ export async function POST() {
         quantity: 1,
       },
     ],
+    phone_number_collection: { enabled: true },
+    billing_address_collection: "auto",
+    shipping_address_collection: {
+      allowed_countries: ["US", "GB", "FR", "DE", "TN", "IT", "ES", "NL", "BE"],
+    },
     success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/`,
-    shipping_address_collection: { allowed_countries: ["US", "GB", "FR", "DE", "TN", "IT", "ES", "NL", "BE"] },
   });
 
   return NextResponse.json({ url: session.url });
