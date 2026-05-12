@@ -9,19 +9,23 @@ export const dynamic = "force-dynamic";
 async function getData() {
   const supabase = getSupabase();
 
-  const [{ data: orders }, { data: products }] = await Promise.all([
+  const [ordersResult, productsResult] = await Promise.all([
     supabase
       .from("orders")
       .select(
         "id, created_at, customer_email, customer_phone, total_amount, status, billing_address_country"
       )
       .order("created_at", { ascending: false }),
-    supabase.from("products").select("*").limit(1).single(),
+    supabase.from("products").select("*").limit(1),
   ]);
 
+  console.log("[admin] products data:", productsResult.data);
+  console.log("[admin] products error:", productsResult.error);
+  console.log("[admin] orders error:", ordersResult.error);
+
   return {
-    orders: orders ?? [],
-    product: products ?? null,
+    orders: ordersResult.data ?? [],
+    product: productsResult.data?.[0] ?? null,
   };
 }
 
