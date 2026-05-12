@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #f5f0e8;
+  --gold: #c9a84c;
+  --gold-light: #e2c97e;
+  --gold-dark: #9a7a2e;
+  --surface: #111111;
+  --surface-2: #1a1a1a;
+  --border: #2a2a2a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer utilities {
+  .text-gold {
+    color: var(--gold);
+  }
+  .text-gold-light {
+    color: var(--gold-light);
+  }
+  .border-gold {
+    border-color: var(--gold);
+  }
+  .bg-gold {
+    background-color: var(--gold);
+  }
+  .bg-surface {
+    background-color: var(--surface);
+  }
+  .bg-surface-2 {
+    background-color: var(--surface-2);
+  }
+}
