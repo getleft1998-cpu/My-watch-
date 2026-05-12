@@ -15,8 +15,8 @@ export async function POST() {
           currency: "eur",
           unit_amount: 4900,
           product_data: {
-            name: "Poedagar Luxury Watch",
-            description: "Premium stainless steel timepiece — limited edition",
+            name: "POEDAGAR Classic Duo Set — Blue & Green",
+            description: "Two watches included: deep ocean blue + fresh emerald green. Swiss quartz, stainless steel, calendar display.",
             images: [],
           },
         },
