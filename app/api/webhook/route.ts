@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         billing_address_state: billingAddress?.state ?? null,
         billing_address_postal_code: billingAddress?.postal_code ?? null,
         billing_address_country: billingAddress?.country ?? null,
-        amount_total: session.amount_total ? session.amount_total / 100 : 49,
+        total_amount: session.amount_total ? session.amount_total / 100 : 49,
         status: "paid",
       })
       .select("id")
