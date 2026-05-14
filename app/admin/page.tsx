@@ -41,8 +41,10 @@ interface Product {
   name: string | null;
   brand: string | null;
   price: number | null;
+  original_price: number | null;
   description: string | null;
   image_url: string | null;
+  images: string[] | null;
   stock: number | null;
   featured: boolean | null;
 }

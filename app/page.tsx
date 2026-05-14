@@ -1,23 +1,69 @@
-"use client";
+import ImageGallery from "@/app/components/ImageGallery";
+import BuyButton from "@/app/components/BuyButton";
 
-import { useState } from "react";
-import Image from "next/image";
+export const dynamic = "force-dynamic";
 
-export default function Home() {
-  const [loading, setLoading] = useState(false);
+interface Product {
+  id: string;
+  name: string | null;
+  price: number | null;
+  original_price: number | null;
+  description: string | null;
+  image_url: string | null;
+  images: string[] | null;
+}
 
-  async function handleBuy() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/checkout", { method: "POST" });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } finally {
-      setLoading(false);
-    }
+const FALLBACK: Product = {
+  id: "",
+  name: "POEDAGAR Classic Duo Set",
+  price: 49,
+  original_price: 149,
+  description:
+    "Two watches. One statement. The POEDAGAR Classic Duo gives you a deep ocean blue for formal moments and a fresh emerald green for everyday elegance. Swiss quartz movement, premium stainless steel, calendar display. Both. Always.",
+  image_url: "/product.jpg",
+  images: null,
+};
+
+async function getProduct(): Promise<Product> {
+  try {
+    const { getSupabase } = await import("@/lib/supabase");
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .schema("public")
+      .rpc("admin_get_product");
+    if (error || !data) return FALLBACK;
+    return data as Product;
+  } catch {
+    return FALLBACK;
   }
+}
+
+const FEATURES = [
+  "2 watches included (Blue dial + Green dial)",
+  "Swiss quartz movement",
+  "Day & date calendar display",
+  "Premium stainless steel bracelet",
+  "30M water resistant",
+  "Free shipping — arrives in 3 business days",
+];
+
+export default async function Home() {
+  const product = await getProduct();
+
+  const price = product.price ?? 49;
+  const originalPrice = product.original_price;
+  const discount =
+    originalPrice && originalPrice > price
+      ? Math.round(((originalPrice - price) / originalPrice) * 100)
+      : null;
+
+  // images[] takes priority; fall back to image_url
+  const imageList =
+    product.images && product.images.length > 0
+      ? product.images
+      : product.image_url
+      ? [product.image_url]
+      : ["/product.jpg"];
 
   return (
     <main className="min-h-screen bg-background flex flex-col">
@@ -33,21 +79,11 @@ export default function Home() {
 
       {/* Hero */}
       <section className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 px-6 py-16 max-w-6xl mx-auto w-full">
-
-        {/* Product image */}
-        <div className="relative flex-shrink-0 w-72 sm:w-96 lg:w-[480px]">
-          <div className="absolute inset-0 rounded-2xl bg-gold/10 blur-3xl" />
-          <div className="relative rounded-2xl overflow-hidden border border-gold/20 shadow-2xl shadow-gold/10">
-            <Image
-              src="/product.jpg"
-              alt="POEDAGAR Classic Duo Set — Blue & Green watches"
-              width={480}
-              height={480}
-              priority
-              className="w-full h-auto object-cover"
-            />
-          </div>
-        </div>
+        {/* Image gallery */}
+        <ImageGallery
+          images={imageList}
+          alt={product.name ?? "POEDAGAR Classic Duo Set"}
+        />
 
         {/* Product info */}
         <div className="flex flex-col items-center lg:items-start text-center lg:text-left max-w-md gap-6">
@@ -56,26 +92,18 @@ export default function Home() {
               Blue &amp; Green — One for Every Occasion
             </p>
             <h1 className="font-serif text-4xl sm:text-5xl text-foreground leading-tight mb-4">
-              POEDAGAR<br />Classic Duo Set
+              POEDAGAR
+              <br />
+              Classic Duo Set
             </h1>
             <p className="text-foreground/60 text-sm sm:text-base leading-relaxed">
-              Two watches. One statement. The POEDAGAR Classic Duo gives you a
-              deep ocean blue for formal moments and a fresh emerald green for
-              everyday elegance. Swiss quartz movement, premium stainless steel,
-              calendar display. Both. Always.
+              {product.description}
             </p>
           </div>
 
           {/* Features */}
           <ul className="space-y-2 text-sm text-foreground/50 w-full">
-            {[
-              "2 watches included (Blue dial + Green dial)",
-              "Swiss quartz movement",
-              "Day & date calendar display",
-              "Premium stainless steel bracelet",
-              "30M water resistant",
-              "Free shipping — arrives in 3 business days",
-            ].map((f) => (
+            {FEATURES.map((f) => (
               <li key={f} className="flex items-center gap-2">
                 <span className="w-1 h-1 rounded-full bg-gold flex-shrink-0" />
                 {f}
@@ -85,21 +113,21 @@ export default function Home() {
 
           {/* Price + CTA */}
           <div className="w-full border-t border-[var(--border)] pt-6 flex flex-col gap-4">
-            <div className="flex items-baseline gap-3">
-              <span className="font-serif text-5xl text-gold">€49</span>
-              <span className="text-foreground/30 text-sm line-through">€149</span>
-              <span className="text-xs text-gold-light bg-gold/10 px-2 py-0.5 rounded">
-                67% OFF
-              </span>
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <span className="font-serif text-5xl text-gold">€{price}</span>
+              {discount !== null && originalPrice && (
+                <>
+                  <span className="text-foreground/30 text-sm line-through">
+                    €{originalPrice}
+                  </span>
+                  <span className="text-xs text-gold-light bg-gold/10 px-2 py-0.5 rounded">
+                    {discount}% OFF
+                  </span>
+                </>
+              )}
             </div>
 
-            <button
-              onClick={handleBuy}
-              disabled={loading}
-              className="w-full sm:w-auto px-10 py-4 bg-gold text-[#0a0a0a] font-sans font-semibold text-sm tracking-widest uppercase rounded transition-all duration-200 hover:bg-gold-light active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? "Redirecting…" : "Buy Now"}
-            </button>
+            <BuyButton />
 
             <p className="text-foreground/30 text-xs text-center lg:text-left">
               Secure checkout via Stripe · 30-day returns
