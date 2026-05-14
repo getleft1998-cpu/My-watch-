@@ -1,5 +1,11 @@
 import ImageGallery from "@/app/components/ImageGallery";
 import BuyButton from "@/app/components/BuyButton";
+import TrustBadges from "@/app/components/TrustBadges";
+import StatsBar from "@/app/components/StatsBar";
+import GuaranteeBanner from "@/app/components/GuaranteeBanner";
+import ReviewsSection from "@/app/components/ReviewsSection";
+import FaqSection from "@/app/components/FaqSection";
+import SiteFooter from "@/app/components/SiteFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -133,13 +139,28 @@ export default async function Home() {
               Secure checkout via Stripe · 30-day returns
             </p>
           </div>
+
+          {/* Trust badges — below CTA */}
+          <TrustBadges />
         </div>
       </section>
 
+      {/* Stats bar */}
+      <StatsBar />
+
+      {/* Guarantee banner */}
+      <GuaranteeBanner />
+
+      {/* Reviews */}
+      <ReviewsSection />
+
+      {/* FAQ */}
+      <div className="w-full flex justify-center">
+        <FaqSection />
+      </div>
+
       {/* Footer */}
-      <footer className="border-t border-[var(--border)] px-6 py-6 text-center text-foreground/20 text-xs tracking-widest">
-        © {new Date().getFullYear()} POEDAGAR — ALL RIGHTS RESERVED
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
