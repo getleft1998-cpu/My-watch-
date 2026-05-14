@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 
 interface Product {
@@ -41,6 +41,12 @@ export default function ProductEditor({ product }: Props) {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
 
+  // Upload state
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<Record<number, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingUploadIdx = useRef<number | null>(null);
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
@@ -48,7 +54,7 @@ export default function ProductEditor({ product }: Props) {
     setStatus("idle");
   }
 
-  // Gallery helpers
+  // ── Gallery helpers ──────────────────────────────────────────────────────
   function addImage() {
     if (images.length >= 6) return;
     setImages([...images, ""]);
@@ -57,6 +63,11 @@ export default function ProductEditor({ product }: Props) {
 
   function removeImage(idx: number) {
     setImages(images.filter((_, i) => i !== idx));
+    setUploadErrors((prev) => {
+      const next = { ...prev };
+      delete next[idx];
+      return next;
+    });
     setStatus("idle");
   }
 
@@ -81,7 +92,53 @@ export default function ProductEditor({ product }: Props) {
     setStatus("idle");
   }
 
-  // Discount preview
+  // ── Upload helpers ───────────────────────────────────────────────────────
+  function triggerUpload(idx: number) {
+    pendingUploadIdx.current = idx;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // reset so same file can be re-selected
+      fileInputRef.current.click();
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const idx = pendingUploadIdx.current;
+    if (!file || idx === null) return;
+
+    // Clear previous error for this slot
+    setUploadErrors((prev) => {
+      const next = { ...prev };
+      delete next[idx];
+      return next;
+    });
+
+    setUploadingIdx(idx);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", body });
+      const json = await res.json();
+      if (!res.ok) {
+        setUploadErrors((prev) => ({ ...prev, [idx]: json.error ?? "Upload failed" }));
+      } else {
+        updateImage(idx, json.url);
+        // Auto-clear error on success
+        setUploadErrors((prev) => {
+          const next = { ...prev };
+          delete next[idx];
+          return next;
+        });
+      }
+    } catch {
+      setUploadErrors((prev) => ({ ...prev, [idx]: "Network error" }));
+    } finally {
+      setUploadingIdx(null);
+      pendingUploadIdx.current = null;
+    }
+  }
+
+  // ── Discount preview ─────────────────────────────────────────────────────
   const priceNum = parseFloat(form.price);
   const origNum = parseFloat(form.original_price);
   const discountPreview =
@@ -92,6 +149,7 @@ export default function ProductEditor({ product }: Props) {
       ? Math.round(((origNum - priceNum) / origNum) * 100)
       : null;
 
+  // ── Save ─────────────────────────────────────────────────────────────────
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -123,11 +181,19 @@ export default function ProductEditor({ product }: Props) {
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-8">
+      {/* Hidden shared file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
       <div className="flex flex-col lg:flex-row gap-8">
         {/* ── Left: text fields ── */}
         <div className="flex-1 flex flex-col gap-4">
 
-          {/* Name */}
           {(["name", "brand"] as const).map((name) => (
             <div key={name} className="flex flex-col gap-1.5">
               <label className="text-xs tracking-widest text-foreground/40 uppercase">
@@ -235,80 +301,135 @@ export default function ProductEditor({ product }: Props) {
             disabled={images.length >= 6}
             className="text-xs text-gold border border-gold/30 hover:border-gold hover:bg-gold/5 px-3 py-1.5 rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            + Add Image URL
+            + Add Slot
           </button>
         </div>
 
         {images.length === 0 && (
           <p className="text-foreground/20 text-xs italic">
-            No images. Add up to 6 URLs. The first is the main image.
+            No images. Add up to 6. The first is the main image. Paste a URL or click Upload.
           </p>
         )}
 
         <div className="flex flex-col gap-2">
           {images.map((src, i) => (
-            <div key={i} className="flex items-center gap-2">
-              {/* Order controls */}
-              <div className="flex flex-col gap-0.5">
+            <div key={i} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                {/* Order controls */}
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => moveUp(i)}
+                    disabled={i === 0}
+                    className="text-foreground/30 hover:text-gold disabled:opacity-20 text-xs leading-none px-1"
+                    title="Move up"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveDown(i)}
+                    disabled={i === images.length - 1}
+                    className="text-foreground/30 hover:text-gold disabled:opacity-20 text-xs leading-none px-1"
+                    title="Move down"
+                  >
+                    ↓
+                  </button>
+                </div>
+
+                {/* Badge */}
+                {i === 0 && (
+                  <span className="text-[10px] text-gold border border-gold/30 px-1.5 py-0.5 rounded flex-shrink-0">
+                    MAIN
+                  </span>
+                )}
+
+                {/* URL input */}
+                <input
+                  type="text"
+                  value={src}
+                  onChange={(e) => updateImage(i, e.target.value)}
+                  placeholder="https://... or /image.jpg"
+                  className="flex-1 bg-surface-2 border border-[var(--border)] rounded px-3 py-2 text-xs text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-gold transition-colors"
+                />
+
+                {/* Upload button */}
                 <button
                   type="button"
-                  onClick={() => moveUp(i)}
-                  disabled={i === 0}
-                  className="text-foreground/30 hover:text-gold disabled:opacity-20 text-xs leading-none px-1"
-                  title="Move up"
+                  onClick={() => triggerUpload(i)}
+                  disabled={uploadingIdx !== null}
+                  title="Upload image from your computer"
+                  className="flex-shrink-0 flex items-center gap-1 text-xs text-foreground/40 hover:text-gold border border-[var(--border)] hover:border-gold/40 bg-surface-2 px-2.5 py-2 rounded transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  ↑
+                  {uploadingIdx === i ? (
+                    // Spinner
+                    <svg
+                      className="w-3.5 h-3.5 animate-spin text-gold"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                      />
+                    </svg>
+                  ) : (
+                    // Camera icon
+                    <svg
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3.5 h-3.5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M1 8a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 018.07 3h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0016.07 6H17a2 2 0 012 2v7a2 2 0 01-2 2H3a2 2 0 01-2-2V8zm13.5 3a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM10 14a3 3 0 100-6 3 3 0 000 6z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                  <span>{uploadingIdx === i ? "" : "Upload"}</span>
                 </button>
+
+                {/* Thumbnail */}
+                {src && (
+                  <div className="w-9 h-9 rounded overflow-hidden border border-[var(--border)] flex-shrink-0">
+                    <Image
+                      src={src}
+                      alt={`img ${i + 1}`}
+                      width={36}
+                      height={36}
+                      unoptimized={src.startsWith("http")}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+
+                {/* Remove */}
                 <button
                   type="button"
-                  onClick={() => moveDown(i)}
-                  disabled={i === images.length - 1}
-                  className="text-foreground/30 hover:text-gold disabled:opacity-20 text-xs leading-none px-1"
-                  title="Move down"
+                  onClick={() => removeImage(i)}
+                  className="text-foreground/30 hover:text-red-400 transition-colors text-sm flex-shrink-0"
+                  title="Remove image"
                 >
-                  ↓
+                  ✕
                 </button>
               </div>
 
-              {/* Badge */}
-              {i === 0 && (
-                <span className="text-[10px] text-gold border border-gold/30 px-1.5 py-0.5 rounded flex-shrink-0">
-                  MAIN
-                </span>
+              {/* Inline upload error */}
+              {uploadErrors[i] && (
+                <p className="text-red-400 text-[10px] pl-10">
+                  ✗ {uploadErrors[i]}
+                </p>
               )}
-
-              {/* URL input */}
-              <input
-                type="text"
-                value={src}
-                onChange={(e) => updateImage(i, e.target.value)}
-                placeholder="https://... or /image.jpg"
-                className="flex-1 bg-surface-2 border border-[var(--border)] rounded px-3 py-2 text-xs text-foreground placeholder:text-foreground/20 focus:outline-none focus:border-gold transition-colors"
-              />
-
-              {/* Thumbnail */}
-              {src && (
-                <div className="w-9 h-9 rounded overflow-hidden border border-[var(--border)] flex-shrink-0">
-                  <Image
-                    src={src}
-                    alt={`img ${i + 1}`}
-                    width={36}
-                    height={36}
-                    unoptimized={src.startsWith("http")}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-
-              {/* Remove */}
-              <button
-                type="button"
-                onClick={() => removeImage(i)}
-                className="text-foreground/30 hover:text-red-400 transition-colors text-sm flex-shrink-0"
-                title="Remove image"
-              >
-                ✕
-              </button>
             </div>
           ))}
         </div>
