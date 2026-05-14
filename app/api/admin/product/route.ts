@@ -11,8 +11,17 @@ export async function PUT(req: NextRequest) {
   }
 
   const supabase = getSupabase();
+  // .schema("public") overrides the client default so PostgREST finds the RPC
   const { error } = await supabase
-    .rpc("admin_update_product", { p_id: id, p_name: name, p_brand: brand, p_price: price, p_description: description, p_image_url: image_url });
+    .schema("public")
+    .rpc("admin_update_product", {
+      p_id: id,
+      p_name: name,
+      p_brand: brand,
+      p_price: price,
+      p_description: description,
+      p_image_url: image_url,
+    });
 
   if (error) {
     console.error("Product update error:", error);

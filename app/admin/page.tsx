@@ -9,9 +9,11 @@ export const dynamic = "force-dynamic";
 async function getData() {
   const supabase = getSupabase();
 
+  // .schema("public") overrides the client default ("poedagar") so PostgREST
+  // looks for the RPC functions in the right place.
   const [ordersResult, productResult] = await Promise.all([
-    supabase.rpc("admin_get_orders"),
-    supabase.rpc("admin_get_product"),
+    supabase.schema("public").rpc("admin_get_orders"),
+    supabase.schema("public").rpc("admin_get_product"),
   ]);
 
   console.log("[admin] product data:", productResult.data);
