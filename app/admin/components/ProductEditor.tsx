@@ -6,10 +6,12 @@ import Image from "next/image";
 interface Product {
   id: string;
   name: string | null;
-  tagline: string | null;
+  brand: string | null;
   price: number | null;
   description: string | null;
   image_url: string | null;
+  stock: number | null;
+  featured: boolean | null;
 }
 
 interface Props {
@@ -19,7 +21,7 @@ interface Props {
 export default function ProductEditor({ product }: Props) {
   const [form, setForm] = useState({
     name: product.name ?? "",
-    tagline: product.tagline ?? "",
+    brand: product.brand ?? "",
     price: product.price?.toString() ?? "",
     description: product.description ?? "",
     image_url: product.image_url ?? "",
@@ -45,7 +47,7 @@ export default function ProductEditor({ product }: Props) {
         body: JSON.stringify({
           id: product.id,
           name: form.name,
-          tagline: form.tagline,
+          brand: form.brand,
           price: parseFloat(form.price),
           description: form.description,
           image_url: form.image_url,
@@ -68,7 +70,7 @@ export default function ProductEditor({ product }: Props) {
         {(
           [
             { label: "Product Name", name: "name", type: "input" },
-            { label: "Tagline", name: "tagline", type: "input" },
+            { label: "Brand", name: "brand", type: "input" },
             { label: "Price (€)", name: "price", type: "input" },
             { label: "Image URL", name: "image_url", type: "input" },
             { label: "Description", name: "description", type: "textarea" },

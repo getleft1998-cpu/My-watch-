@@ -9,24 +9,40 @@ export const dynamic = "force-dynamic";
 async function getData() {
   const supabase = getSupabase();
 
-  const [ordersResult, productsResult] = await Promise.all([
-    supabase
-      .from("orders")
-      .select(
-        "id, created_at, customer_email, customer_phone, total_amount, status, billing_address_country"
-      )
-      .order("created_at", { ascending: false }),
-    supabase.from("products").select("*").limit(1),
+  const [ordersResult, productResult] = await Promise.all([
+    supabase.rpc("admin_get_orders"),
+    supabase.rpc("admin_get_product"),
   ]);
 
-  console.log("[admin] products data:", productsResult.data);
-  console.log("[admin] products error:", productsResult.error);
+  console.log("[admin] product data:", productResult.data);
+  console.log("[admin] product error:", productResult.error);
   console.log("[admin] orders error:", ordersResult.error);
 
   return {
-    orders: ordersResult.data ?? [],
-    product: productsResult.data?.[0] ?? null,
+    orders: (ordersResult.data as Order[]) ?? [],
+    product: (productResult.data as Product) ?? null,
   };
+}
+
+interface Order {
+  id: string;
+  created_at: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  total_amount: number | null;
+  status: string | null;
+  billing_address_country: string | null;
+}
+
+interface Product {
+  id: string;
+  name: string | null;
+  brand: string | null;
+  price: number | null;
+  description: string | null;
+  image_url: string | null;
+  stock: number | null;
+  featured: boolean | null;
 }
 
 export default async function AdminDashboard() {
@@ -58,7 +74,7 @@ export default async function AdminDashboard() {
         </section>
 
         {/* Product Editor */}
-        {product && (
+        {product ? (
           <section>
             <h2 className="text-xs tracking-widest text-foreground/40 uppercase mb-4">
               Product Editor
@@ -67,9 +83,7 @@ export default async function AdminDashboard() {
               <ProductEditor product={product} />
             </div>
           </section>
-        )}
-
-        {!product && (
+        ) : (
           <section>
             <div className="bg-surface border border-[var(--border)] rounded-lg p-8 text-center text-foreground/30 text-sm">
               No product found in <code>poedagar.products</code>. Insert a row to enable editing.
